@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lectura Bíblica Diaria</title>
+  <!-- ✅ Google AdSense — desactivar anuncios ancla automáticos que bloquean la interfaz -->
+  <script>
+    (window.adsbygoogle = window.adsbygoogle || []).pauseAdRequests = 0;
+  </script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-app-pub-5082966504863645"
+          crossorigin="anonymous"
+          data-overlays="bottom"></script>
+  <!-- Deshabilitar anuncios automáticos de anclaje (anchor ads) que bloquean botones -->
+  <script>
+    (adsbygoogle=window.adsbygoogle||[]).push({
+      google_ad_client: "ca-app-pub-5082966504863645",
+      overlays: {bottom: false}
+    });
+  </script>
+    <meta name="description" content="Plan de lectura bíblica anual RVR1960. Lee la Biblia en un año.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#172444">
+    <!-- 🛡️ Ciberseguridad: Headers de protección avanzada + todos los dominios de Google Ads -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline'
+        https://unpkg.com
+        https://pagead2.googlesyndication.com
+        https://www.googletagservices.com
+        https://www.googletagmanager.com
+        https://adservice.google.com
+        https://googleads.g.doubleclick.net
+        https://tpc.googlesyndication.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: blob:
+        https://*.googlesyndication.com
+        https://*.doubleclick.net
+        https://googleads.g.doubleclick.net
+        https://adservice.google.com;
+      connect-src 'self'
+        https://*.googlesyndication.com
+        https://adservice.google.com
+        https://googleads.g.doubleclick.net
+        https://pagead2.googlesyndication.com;
+      frame-src
+        https://googleads.g.doubleclick.net
+        https://tpc.googlesyndication.com
+        https://www.googletagservices.com;
+    ">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="no-referrer">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <style>
+        /* Mobile optimizations for true APK feel */
+        body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <!-- ══════ SPLASH: LANGUAGE SELECTION ══════ -->
+    <div id="splash-screen">
+        <span class="splash-cross">✝</span>
+        <div class="splash-bible-icon">📖</div>
+        <div class="splash-title">
+            <h1>Lectura Bíblica<br>Diaria</h1>
+            <p>Plan de lectura anual RVR1960</p>
+        </div>
+        <div class="lang-options" id="lang-options">
+            <button class="lang-btn selected" data-lang="es" data-api="RVR60"><span class="lang-flag">🇪🇸</span> Español</button>
+            <button class="lang-btn" data-lang="en" data-api="KJV"><span class="lang-flag">🇺🇸</span> English (KJV)</button>
+            <button class="lang-btn" data-lang="it" data-api="ITADIO"><span class="lang-flag">🇮🇹</span> Italiano</button>
+            <button class="lang-btn" data-lang="pt" data-api="ARC"><span class="lang-flag">🇧🇷</span> Português</button>
+            <button class="lang-btn" data-lang="de" data-api="LUTH1545"><span class="lang-flag">🇩🇪</span> Deutsch</button>
+        </div>
+        <button class="btn-next" id="btn-next">Siguiente →</button>
+    </div>
+
+    <!-- ══════ MAIN APP ══════ -->
+    <div id="main-app" class="hidden">
+        <main id="view-container"></main>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-tab="home" id="nav-home">
+                <ion-icon name="book-outline"></ion-icon>
+                <span id="nav-home-label">Lectura</span>
+            </button>
+            <button class="nav-item" data-tab="library" id="nav-library">
+                <ion-icon name="library-outline"></ion-icon>
+                <span id="nav-library-label">Diario</span>
+            </button>
+            <button class="nav-item" data-tab="games" id="nav-games">
+                <ion-icon name="game-controller-outline"></ion-icon>
+                <span id="nav-juegos-label">Juegos</span>
+            </button>
+            <button class="nav-item" data-tab="settings" id="nav-settings">
+                <ion-icon name="settings-outline"></ion-icon>
+                <span id="nav-settings-label">Config</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ══════ ADMOB FIXED BANNER ══════ -->
+    <div id="ad-banner-container" style="position:fixed; bottom:70px; left:0; width:100%; height:50px; background:rgba(23,36,68,0.8); display:none; align-items:center; justify-content:center; z-index:900; border-top:1px solid rgba(201,151,58,0.3);">
+        <ins class="adsbygoogle"
+             style="display:inline-block;width:320px;height:50px"
+             data-ad-client="ca-app-pub-5082966504863645"
+             data-ad-slot="4282684535"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+
+    <div id="reader-modal">
+        <div class="reader-header">
+            <div class="reader-header-left">
+                <button class="btn-close-reader" id="btn-close-reader"><ion-icon name="arrow-back-outline"></ion-icon></button>
+                <div class="reader-title" id="reader-title">Génesis 1</div>
+            </div>
+            <div class="reader-controls">
+                <button class="btn-font" id="btn-font-dec">A-</button>
+                <button class="btn-font" id="btn-font-inc">A+</button>
+            </div>
+        </div>
+        <div class="reader-body" id="reader-body">
+            <!-- Text loaded dynamically -->
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+</div>
+
+<script type="module" src="app.js?v=2"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+</script>
+</body>
+</html>
