@@ -83,15 +83,15 @@ const AdManager = (() => {
       overlay.className = 'ad-overlay-modal open';
       overlay.style.cssText = 'z-index:9999;background:rgba(10,15,35,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
       overlay.innerHTML = `
-        <div style="color:#7A8FB5;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">Anuncio patrocinado</div>
+        <div style="color:#7A8FB5;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${t.adSponsored}</div>
         <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,151,58,0.25);border-radius:16px;padding:32px 28px;text-align:center;max-width:320px;">
           <ion-icon name="tv-outline" style="font-size:3rem;color:#d4af37;"></ion-icon>
-          <h3 style="color:#fff;margin:12px 0 6px;">Apoya la aplicación</h3>
-          <p style="color:#7A8FB5;font-size:0.9rem;">Este anuncio mantiene la app gratuita para todos.</p>
+          <h3 style="color:#fff;margin:12px 0 6px;">${t.adSupport}</h3>
+          <p style="color:#7A8FB5;font-size:0.9rem;">${t.adDesc}</p>
         </div>
         <div style="display:flex;align-items:center;gap:8px;color:#7A8FB5;font-size:0.85rem;">
           <ion-icon name="time-outline"></ion-icon>
-          <span id="ad-countdown">Cerrando en 5...</span>
+          <span id="ad-countdown">${t.adClosingIn} 5...</span>
         </div>
       `;
       document.body.appendChild(overlay);
@@ -101,7 +101,7 @@ const AdManager = (() => {
       const ticker = setInterval(() => {
         secs--;
         const el = overlay.querySelector('#ad-countdown');
-        if (el) el.textContent = secs > 0 ? `Cerrando en ${secs}...` : '¡Listo!';
+        if (el) el.textContent = secs > 0 ? `${t.adClosingIn} ${secs}...` : t.adClosingReady;
         if (secs <= 0) {
           clearInterval(ticker);
           overlay.remove();
@@ -120,16 +120,16 @@ const AdManager = (() => {
       overlay.className = 'ad-overlay-modal open';
       overlay.style.cssText = 'z-index:9999;background:rgba(10,15,35,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
       overlay.innerHTML = `
-        <div style="color:#7A8FB5;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">Anuncio recompensado</div>
+        <div style="color:#7A8FB5;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${t.adRewarded}</div>
         <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,151,58,0.25);border-radius:16px;padding:32px 28px;text-align:center;max-width:320px;">
           <ion-icon name="gift-outline" style="font-size:3rem;color:#d4af37;"></ion-icon>
-          <h3 style="color:#fff;margin:12px 0 6px;">¡Mira y recibe tu recompensa!</h3>
-          <p style="color:#7A8FB5;font-size:0.9rem;">Termina el anuncio para obtener +2 vidas.</p>
+          <h3 style="color:#fff;margin:12px 0 6px;">${t.adRewardTitle}</h3>
+          <p style="color:#7A8FB5;font-size:0.9rem;">${t.adRewardDesc}</p>
         </div>
         <div style="width:280px;background:rgba(255,255,255,0.07);border-radius:50px;height:8px;overflow:hidden;">
           <div id="ad-rew-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#d4af37,#f0cf65);transition:width 0.25s linear;border-radius:50px;"></div>
         </div>
-        <div style="color:#7A8FB5;font-size:0.85rem;" id="ad-rew-label">Cargando anuncio... 0%</div>
+        <div style="color:#7A8FB5;font-size:0.85rem;" id="ad-rew-label">${t.adLoading}</div>
       `;
       document.body.appendChild(overlay);
 
@@ -142,13 +142,13 @@ const AdManager = (() => {
         const bar = overlay.querySelector('#ad-rew-bar');
         const lbl = overlay.querySelector('#ad-rew-label');
         if (bar) bar.style.width = pct + '%';
-        if (lbl) lbl.textContent = pct < 100 ? `Viendo anuncio... ${pct}%` : '✅ ¡Recompensa desbloqueada!';
+        if (lbl) lbl.textContent = pct < 100 ? `${t.adWatching} ${pct}%` : t.adUnlocked;
         if (elapsed >= DURATION) {
           clearInterval(interval);
           setTimeout(() => {
             overlay.remove();
             if (onReward) onReward();
-            showToast('🎁 +2 Vidas obtenidas. ¡Sigue jugando!');
+            showToast(t.livesGained);
           }, 800);
         }
       }, 1000);
@@ -159,99 +159,161 @@ const AdManager = (() => {
 const ReminderManager = {
   activeTimer: null,
   trumpetURL: 'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg',
-  
+
+  // Horarios fijos en los que se enviará recordatorio (horas del día)
+  SCHEDULE_HOURS: [7, 10, 12, 15, 18, 20],
+
   getSettings: () => getStorage('rem_settings', null),
-  
+
   setSettings: (s) => {
     setStorage('rem_settings', s);
     ReminderManager.schedule();
+    ReminderManager.registerPeriodicSync();
   },
-  
+
+  // ── Registrar Periodic Background Sync ──────────────────
+  registerPeriodicSync: async () => {
+    if (!('serviceWorker' in navigator) || !('periodicSync' in ServiceWorkerRegistration.prototype)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+      if (status.state === 'granted') {
+        await reg.periodicSync.register('daily-bible-reminder', { minInterval: 60 * 60 * 1000 });
+      }
+    } catch (e) { console.log('[SW] periodicSync not supported:', e.message); }
+  },
+
+  // ── Programar verificación cada 5 min mientras la app está abierta ──
   schedule: () => {
     if (ReminderManager.activeTimer) clearInterval(ReminderManager.activeTimer);
     const s = ReminderManager.getSettings();
     if (!s || s.freq === 0) return;
+    // Verificar inmediatamente y luego cada 5 minutos
+    ReminderManager.checkAndNotify();
     ReminderManager.activeTimer = setInterval(() => {
-        ReminderManager.checkAndNotify();
-    }, 10 * 60000);
+      ReminderManager.checkAndNotify();
+    }, 5 * 60 * 1000);
   },
-  
+
+  // ── Verificar si debe notificar ahora ───────────────────
   checkAndNotify: () => {
     const todayKey = `${month}-${day}`;
+    // Si ya completó la lectura hoy, NO notificar
     if (getStorage('done_' + todayKey, false)) return;
+
     const s = ReminderManager.getSettings();
     if (!s || s.freq === 0) return;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // Verificar si estamos dentro de los primeros 10 minutos de un horario programado
+    const isScheduledTime = ReminderManager.SCHEDULE_HOURS.some(h => {
+      return currentHour === h && currentMinute < 10;
+    });
+
+    // También verificar el intervalo de frecuencia configurado por el usuario
     const lastNotif = getStorage('last_rem', 0);
     const nowMs = Date.now();
-    if (nowMs - lastNotif >= s.freq * 60 * 60000) {
-        ReminderManager.notify();
-        setStorage('last_rem', nowMs);
+    const intervalPassed = (nowMs - lastNotif) >= s.freq * 60 * 60 * 1000;
+
+    if (isScheduledTime || intervalPassed) {
+      // Evitar notificar dos veces en el mismo slot de 10 min
+      const lastNotifDate = new Date(lastNotif);
+      const sameSlot = lastNotifDate.toDateString() === now.toDateString() &&
+                       lastNotifDate.getHours() === currentHour;
+      if (sameSlot && isScheduledTime) return;
+
+      ReminderManager.notify();
+      setStorage('last_rem', nowMs);
     }
   },
-  
-  // ── Dispara SIEMPRE notificación de pantalla + trompeta simultáneamente ──
+
+  // ── Disparar notificación + trompeta ────────────────────
   notify: () => {
     const s = ReminderManager.getSettings() || { sound: true, vib: true };
-    const bodyText = t.remBody + (todayRefs() ? todayRefs().join(', ') : '');
+    const refs = todayRefs();
+    const bodyText = t.remBody + (refs ? refs.join(', ') : '');
 
-    // 1️⃣ Notificación visual de pantalla
+    // 1️⃣ Notificación del sistema (via Service Worker para mayor compatibilidad)
     if (Notification.permission === 'granted') {
-        new Notification(t.remNow, {
-            body: bodyText,
-            icon: './icon-192.png',
-            badge: './icon-192.png',
-            silent: true  // El sonido lo manejamos nosotros con la trompeta
+      // Intentar enviar via SW para mejor soporte en Android
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_REMINDER',
+          title: '📖 ' + t.remNow,
+          body: bodyText
         });
+      } else {
+        // Fallback a Notification directa
+        new Notification('📖 ' + t.remNow, {
+          body: bodyText,
+          icon: './logo.png',
+          badge: './icon-192.png',
+          tag: 'bible-reminder',
+          renotify: true,
+          silent: true
+        });
+      }
     } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then(perm => {
-            if (perm === 'granted') {
-                new Notification(t.remNow, { body: bodyText, icon: './icon-192.png', silent: true });
-            }
-        });
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') ReminderManager.notify();
+      });
+      return;
     }
 
-    // 2️⃣ Sonido de trompeta (siempre junto con la notificación)
+    // 2️⃣ Trompeta sonora
     if (s.sound !== false) {
-        const audio = new Audio(ReminderManager.trumpetURL);
-        audio.volume = 1.0;
-        audio.play().catch(e => console.warn('[Reminder] Audio bloqueado por el navegador:', e.message));
+      const audio = new Audio(ReminderManager.trumpetURL);
+      audio.volume = 1.0;
+      audio.play().catch(e => console.warn('[Reminder] Audio bloqueado:', e.message));
     }
 
     // 3️⃣ Vibración
     if (s.vib !== false && navigator.vibrate) {
-        navigator.vibrate([400, 150, 400, 150, 400]);
+      navigator.vibrate([400, 150, 400, 150, 400]);
     }
 
     showToast('🎺 ' + t.remNow);
   },
 
-  // ── Probar notificación ahora mismo ──
+  // ── Probar notificación ahora ────────────────────────────
   testNotify: () => {
     const audio = new Audio(ReminderManager.trumpetURL);
     audio.volume = 1.0;
-    audio.play().catch(e => showToast('⚠️ Activa el audio para escuchar la trompeta'));
+    audio.play().catch(() => showToast('⚠️ Activa el audio del dispositivo'));
+
     if (Notification.permission === 'granted') {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_REMINDER',
+          title: '🎺 ' + t.remTitle,
+          body: t.testNotifBody
+        });
+      } else {
         new Notification('🎺 ' + t.remTitle, {
-            body: t.testNotifBody,
-            icon: './icon-192.png',
-            silent: true
+          body: t.testNotifBody,
+          icon: './logo.png',
+          badge: './icon-192.png',
+          silent: true
         });
-        showToast('✅ ' + t.testNotifOk);
+      }
+      showToast('✅ ' + t.testNotifOk);
     } else {
-        Notification.requestPermission().then(p => {
-            p === 'granted' ? showToast('✅ ' + t.testNotifOk) : showToast('⚠️ ' + t.notifDenied);
-        });
+      Notification.requestPermission().then(p => {
+        p === 'granted' ? showToast('✅ ' + t.testNotifOk) : showToast('⚠️ ' + t.notifDenied);
+      });
     }
     if (navigator.vibrate) navigator.vibrate([400, 150, 400]);
   },
-  
-  // ── Modal de configuración ── isFirstTime=true: no hay botón cerrar ──
+
+  // ── Modal de configuración ──────────────────────────────
   openSettings: (isFirstTime = false) => {
     const s = ReminderManager.getSettings() || { freq: 1, sound: true, vib: true };
     const modal = document.createElement('div');
     modal.className = 'ad-overlay-modal open';
     modal.style.zIndex = '6000';
-    // Evitar cerrar tocando fuera en modo primera vez
     if (isFirstTime) modal.onclick = (e) => { if (e.target === modal) return; };
 
     modal.innerHTML = `
@@ -265,9 +327,10 @@ const ReminderManager = {
 
             <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:12px;padding:14px;margin:12px 0;">
               <div style="color:#d4af37;font-weight:600;font-size:0.85rem;margin-bottom:8px;">🔔 ${t.notifTypes}</div>
-              <div style="color:#aab8d6;font-size:0.82rem;line-height:1.6;">
+              <div style="color:#aab8d6;font-size:0.82rem;line-height:1.8;">
                 📱 ${t.notifScreen}<br>
-                🎺 ${t.notifSound}
+                🎺 ${t.notifSound}<br>
+                <span style="color:#d4af37;font-size:0.78rem;">⏰ ${t.scheduleHours || 'Horarios: 7am, 10am, 12pm, 3pm, 6pm, 8pm'}</span>
               </div>
             </div>
 
@@ -280,47 +343,118 @@ const ReminderManager = {
                     <option value="4" ${s.freq === 4 ? 'selected' : ''}>${t.h4}</option>
                 </select>
             </div>
-            
+
             <div class="rem-field row">
                 <label>${t.sound}</label>
                 <input type="checkbox" id="rem-sound" ${s.sound !== false ? 'checked' : ''}>
             </div>
-            
+
             <div class="rem-field row">
                 <label>${t.vib}</label>
                 <input type="checkbox" id="rem-vib" ${s.vib !== false ? 'checked' : ''}>
             </div>
-            
+
             <button class="btn-ad-reward" id="rem-btn-save" style="margin-top:20px;width:100%;">${isFirstTime ? t.mandatorySaveBtn : t.save}</button>
             ${!isFirstTime ? `<button class="btn-close-reader" id="rem-btn-close" style="color:#7A8FB5;font-size:1rem;margin-top:10px;">✕</button>` : ''}
         </div>
     `;
     document.body.appendChild(modal);
-    
+
     modal.querySelector('#rem-btn-save').onclick = () => {
-        const newS = {
-            freq: parseInt(modal.querySelector('#rem-freq').value),
-            sound: modal.querySelector('#rem-sound').checked,
-            vib: modal.querySelector('#rem-vib').checked
-        };
-        ReminderManager.setSettings(newS);
-        // Pedir permisos de notificación siempre al guardar por primera vez
-        if (Notification.permission !== 'granted') {
-            Notification.requestPermission().then(p => {
-                if (p === 'granted') showToast('✅ ' + t.notifGranted);
-                else showToast('⚠️ ' + t.notifDenied);
-            });
-        }
-        showToast('⏰ ' + t.remSaved);
-        modal.remove();
-        // Si es primera vez, refrescar la vista de configuración si está abierta
-        if ($('settings-view') && $('settings-view').classList.contains('active')) loadSettingsView();
+      const newS = {
+        freq: parseInt(modal.querySelector('#rem-freq').value),
+        sound: modal.querySelector('#rem-sound').checked,
+        vib: modal.querySelector('#rem-vib').checked
+      };
+      ReminderManager.setSettings(newS);
+      if (Notification.permission !== 'granted') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') {
+            showToast('✅ ' + t.notifGranted);
+            ReminderManager.registerPeriodicSync();
+          } else {
+            showToast('⚠️ ' + t.notifDenied);
+          }
+        });
+      }
+      showToast('⏰ ' + t.remSaved);
+      modal.remove();
+      if ($('settings-view') && $('settings-view').classList.contains('active')) loadSettingsView();
     };
-    
+
     const closeBtn = modal.querySelector('#rem-btn-close');
     if (closeBtn) closeBtn.onclick = () => modal.remove();
   }
 };
+
+// ── AudioBible (Web Speech API) ─────────────────────────
+const AudioBible = {
+  synth: window.speechSynthesis,
+  utterance: null,
+  isPlaying: false,
+  toggle: () => {
+    if (!AudioBible.synth) return;
+    if (AudioBible.isPlaying) {
+      AudioBible.stop();
+    } else {
+      const body = $('reader-body');
+      if (!body) return;
+      // remove verse numbers before reading
+      let text = body.innerText.replace(/\d+/g, ' '); 
+      if (!text || text.trim() === '') return;
+      
+      AudioBible.utterance = new SpeechSynthesisUtterance(text);
+      AudioBible.utterance.lang = lang === 'en' ? 'en-US' : 
+                                  lang === 'pt' ? 'pt-BR' : 
+                                  lang === 'it' ? 'it-IT' : 
+                                  lang === 'de' ? 'de-DE' : 'es-ES';
+      
+      AudioBible.utterance.onend = () => {
+        AudioBible.isPlaying = false;
+        if($('btn-audio-bible')) $('btn-audio-bible').innerHTML = '<ion-icon name="play-circle-outline"></ion-icon>';
+      };
+      
+      const voices = AudioBible.synth.getVoices();
+      const preferred = voices.find(v => v.lang.startsWith(lang) && (v.name.includes('Premium') || v.name.includes('Google') || v.name.includes('Online')));
+      if (preferred) AudioBible.utterance.voice = preferred;
+
+      AudioBible.synth.speak(AudioBible.utterance);
+      AudioBible.isPlaying = true;
+      if($('btn-audio-bible')) $('btn-audio-bible').innerHTML = '<ion-icon name="pause-circle-outline"></ion-icon>';
+    }
+  },
+  stop: () => {
+    if (AudioBible.synth) AudioBible.synth.cancel();
+    AudioBible.isPlaying = false;
+    if ($('btn-audio-bible')) $('btn-audio-bible').innerHTML = '<ion-icon name="play-circle-outline"></ion-icon>';
+  }
+};
+if (window.speechSynthesis) window.speechSynthesis.getVoices(); // precargar voces
+
+// ── Background Music ──────────────────────────────────────
+const BackgroundMusic = {
+  audio: new Audio('https://upload.wikimedia.org/wikipedia/commons/4/4b/Gymnopedie_No_1.ogg'),
+  init: () => {
+    BackgroundMusic.audio.loop = true;
+    BackgroundMusic.audio.volume = 0.5;
+    if (getStorage('bg_music_on', false)) {
+      document.body.addEventListener('click', () => {
+        if (getStorage('bg_music_on', false) && BackgroundMusic.audio.paused) {
+          BackgroundMusic.audio.play().catch(e => console.warn('Music playback error:', e.message));
+        }
+      }, { once: true });
+    }
+  },
+  toggle: () => {
+    const isNowOn = !getStorage('bg_music_on', false);
+    setStorage('bg_music_on', isNowOn);
+    if (isNowOn) BackgroundMusic.audio.play().catch(() => showToast('Activa el audio primero'));
+    else BackgroundMusic.audio.pause();
+    return isNowOn;
+  }
+};
+BackgroundMusic.init();
+
 
 // ── i18n ──────────────────────────────────────────────────
 const I18N = {
@@ -358,7 +492,17 @@ const I18N = {
         settingsSub: 'Personaliza tu experiencia de lectura',
         notifStatus: 'Estado actual de notificaciones',
         notifOn: '✅ Notificaciones activas', notifOff: '❌ Notificaciones desactivadas',
-        editConfig: '✏️ Editar Configuración' },
+        editConfig: '✏️ Editar Configuración',
+        adSponsored: 'Anuncio patrocinado', adSupport: 'Apoya la aplicación',
+        adDesc: 'Este anuncio mantiene la app gratuita para todos.',
+        adClosingIn: 'Cerrando en', adClosingReady: '¡Listo!',
+        adRewarded: 'Anuncio recompensado', adRewardTitle: '¡Mira y recibe tu recompensa!',
+        adRewardDesc: 'Termina el anuncio para obtener +2 vidas.',
+        adLoading: 'Cargando anuncio... 0%', adWatching: 'Viendo anuncio...',
+        adUnlocked: '✅ ¡Recompensa desbloqueada!',
+        livesGained: '🎁 +2 Vidas obtenidas. ¡Sigue jugando!',
+        testNotifDesc: 'Toca el botón para recibir una notificación de prueba ahora mismo.',
+        yearBible: 'Biblia en Un Año', phase: 'Fase' },
 
   en: { reading:'Daily Reading', subtitle:'Bible in a Year ·', tapped:'Tap to read',
         trescitas:'📚 Your Three Readings', reflection:'✏️ My Reflection', placeholder:'Write your personal reflection here',
@@ -394,7 +538,17 @@ const I18N = {
         settingsSub: 'Personalize your reading experience',
         notifStatus: 'Current notification status',
         notifOn: '✅ Notifications active', notifOff: '❌ Notifications disabled',
-        editConfig: '✏️ Edit Configuration' },
+        editConfig: '✏️ Edit Configuration',
+        adSponsored: 'Sponsored Ad', adSupport: 'Support the App',
+        adDesc: 'This ad keeps the app free for everyone.',
+        adClosingIn: 'Closing in', adClosingReady: 'Ready!',
+        adRewarded: 'Rewarded Ad', adRewardTitle: 'Watch and earn your reward!',
+        adRewardDesc: 'Finish the ad to get +2 lives.',
+        adLoading: 'Loading ad... 0%', adWatching: 'Watching ad...',
+        adUnlocked: '✅ Reward unlocked!',
+        livesGained: '🎁 +2 Lives earned. Keep playing!',
+        testNotifDesc: 'Tap the button to receive a test notification right now.',
+        yearBible: 'Bible in One Year', phase: 'Phase' },
   pt: { reading:'Leitura Diária', subtitle:'Bíblia em um Ano ·', tapped:'Toque para ler',
         trescitas:'📚 Suas Três Leituras', reflection:'✏️ Minha Reflexão', placeholder:'Escreva sua reflexão pessoal aqui',
         noref:'Ainda sem reflexão', diary:'📖 Ver Meu Diário Completo', complete:'✓ Concluída',
@@ -429,7 +583,17 @@ const I18N = {
         settingsSub: 'Personalize sua experiência',
         notifStatus: 'Status atual das notificações',
         notifOn: '✅ Notificações ativas', notifOff: '❌ Notificações desativadas',
-        editConfig: '✏️ Editar Configuração' },
+        editConfig: '✏️ Editar Configuração',
+        adSponsored: 'Anúncio patrocinado', adSupport: 'Apoie o aplicativo',
+        adDesc: 'Este anúncio mantém o app gratuito para todos.',
+        adClosingIn: 'Fechando em', adClosingReady: 'Pronto!',
+        adRewarded: 'Anúncio recompensado', adRewardTitle: 'Assista e ganhe sua recompensa!',
+        adRewardDesc: 'Termine o anúncio para ganhar +2 vidas.',
+        adLoading: 'Carregando anúncio... 0%', adWatching: 'Assistindo anúncio...',
+        adUnlocked: '✅ Recompensa desbloqueada!',
+        livesGained: '🎁 +2 Vidas ganhas. Continue jogando!',
+        testNotifDesc: 'Toque no botão para receber uma notificação de teste agora.',
+        yearBible: 'Bíblia em Um Ano', phase: 'Fase' },
   it: { reading:'Lettura Quotidiana', subtitle:'Bibbia in un Anno ·', tapped:'Tocca per leggere',
         trescitas:'📚 Le Tue Tre Letture', reflection:'✏️ La Mia Riflessione', placeholder:'Scrivi la tua riflessione personale qui',
         noref:'Ancora nessuna riflessione', diary:'📖 Vedi il Mio Diario Completo', complete:'✓ Completato',
@@ -464,7 +628,17 @@ const I18N = {
         settingsSub: 'Personalizza la tua esperienza',
         notifStatus: 'Stato notifiche attuale',
         notifOn: '✅ Notifiche attive', notifOff: '❌ Notifiche disattivate',
-        editConfig: '✏️ Modifica Configurazione' },
+        editConfig: '✏️ Modifica Configurazione',
+        adSponsored: 'Annuncio sponsorizzato', adSupport: 'Supporta l\'app',
+        adDesc: 'Questo annuncio mantiene l\'app gratuita per tutti.',
+        adClosingIn: 'Chiusura tra', adClosingReady: 'Pronto!',
+        adRewarded: 'Annuncio con ricompensa', adRewardTitle: 'Guarda e ricevi la tua ricompensa!',
+        adRewardDesc: 'Completa l\'annuncio per ottenere +2 vite.',
+        adLoading: 'Caricamento annuncio... 0%', adWatching: 'Visione annuncio...',
+        adUnlocked: '✅ Ricompensa sbloccata!',
+        livesGained: '🎁 +2 Vite ottenute. Continua a giocare!',
+        testNotifDesc: 'Tocca il pulsante per ricevere una notifica di prova adesso.',
+        yearBible: 'Bibbia in Un Anno', phase: 'Fase' },
   de: { reading:'Tägliche Lesung', subtitle:'Bibel in einem Jahr ·', tapped:'Tippen zum Lesen',
         trescitas:'📚 Deine Drei Lesungen', reflection:'✏️ Meine Reflexion', placeholder:'Schreibe deine persönliche Reflexion hier',
         noref:'Noch keine Reflexion', diary:'📖 Mein vollständiges Tagebuch', complete:'✓ Abgeschlossen',
@@ -499,7 +673,17 @@ const I18N = {
         settingsSub: 'Personalisiere deine Erfahrung',
         notifStatus: 'Aktueller Benachrichtigungsstatus',
         notifOn: '✅ Benachrichtigungen aktiv', notifOff: '❌ Benachrichtigungen deaktiviert',
-        editConfig: '✏️ Konfiguration bearbeiten' }
+        editConfig: '✏️ Konfiguration bearbeiten',
+        adSponsored: 'Gesponserte Anzeige', adSupport: 'Unterstütze die App',
+        adDesc: 'Diese Anzeige hält die App für alle kostenlos.',
+        adClosingIn: 'Schließt in', adClosingReady: 'Fertig!',
+        adRewarded: 'Belohnungsanzeige', adRewardTitle: 'Schau und erhalte deine Belohnung!',
+        adRewardDesc: 'Beende die Anzeige und erhalte +2 Leben.',
+        adLoading: 'Anzeige wird geladen... 0%', adWatching: 'Anzeige ansehen...',
+        adUnlocked: '✅ Belohnung freigeschaltet!',
+        livesGained: '🎁 +2 Leben erhalten. Weiterspielen!',
+        testNotifDesc: 'Tippe den Knopf, um jetzt eine Testbenachrichtigung zu erhalten.',
+        yearBible: 'Bibel in einem Jahr', phase: 'Phase' }
 };
 
 let QUIZ_Q = [];
@@ -691,20 +875,34 @@ function loadSettingsView() {
           <ion-icon name="musical-notes-outline" style="font-size:1.5rem;color:#d4af37;"></ion-icon>
           <div style="color:#fff;font-weight:600;font-size:0.95rem;">🎺 ${t.testNotifBtn}</div>
         </div>
-        <p style="color:#7A8FB5;font-size:0.85rem;margin:0 0 14px;">Toca el botón para recibir una notificación de prueba ahora mismo.</p>
+        <p style="color:#7A8FB5;font-size:0.85rem;margin:0 0 14px;">${t.testNotifDesc}</p>
         <button class="btn-ad-reward" id="settings-test-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#1a3a6e,#2a5298);">🎺 ${t.testNotifBtn}</button>
+      </div>
+
+      <!-- Tarjeta: Música de fondo -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,151,58,0.2);border-radius:16px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <ion-icon name="musical-note-outline" style="font-size:1.5rem;color:#d4af37;"></ion-icon>
+          <div>
+            <div style="color:#fff;font-weight:600;font-size:0.95rem;">Música Ambiental</div>
+            <div style="color:#7A8FB5;font-size:0.75rem;margin-top:2px;">"Gymnopédie No. 1" - E. Satie</div>
+          </div>
+        </div>
+        <input type="checkbox" id="settings-music-toggle" style="transform:scale(1.6);accent-color:#d4af37;" ${getStorage('bg_music_on', false) ? 'checked' : ''}>
       </div>
 
       <!-- Info versión -->
       <div style="text-align:center;padding:20px;color:#3a4e77;font-size:0.78rem;">
-        Lectura Bíblica Diaria · v2.1 · ${apiVersion}<br>
-        <span style="color:#d4af37;">✝</span> Biblia en Un Año
+        ${t.reading} · v2.1 · ${apiVersion}<br>
+        <span style="color:#d4af37;">✝</span> ${t.yearBible}
       </div>
     </div>
   `;
 
   $('settings-edit-btn').onclick = () => ReminderManager.openSettings(false);
   $('settings-test-btn').onclick = () => ReminderManager.testNotify();
+  const musicToggle = $('settings-music-toggle');
+  if (musicToggle) musicToggle.onchange = () => BackgroundMusic.toggle();
 }
 
 // ── HOME ──────────────────────────────────────────────────
@@ -725,7 +923,10 @@ async function loadHomeView() {
             <p>${t.subtitle} ${apiVersion}</p>
           </div>
         </div>
-        <div style="display:flex; gap:15px; align-items:center;">
+        <div style="display:flex; gap:12px; align-items:center;">
+           <div id="streak-counter" style="background:rgba(212,175,55,0.15);padding:4px 10px;border-radius:20px;font-size:0.85rem;color:#f0cf65;font-weight:700;display:flex;align-items:center;gap:4px;">
+             🔥 <span>${getStorage('streak_count', 0)}</span>
+           </div>
            <button class="btn-icon-top" id="btn-reminders"><ion-icon name="notifications-outline"></ion-icon></button>
            <span class="hero-cross">✝</span>
         </div>
@@ -762,8 +963,11 @@ async function loadHomeView() {
     <div class="section-label">${t.reflection}</div>
     <div class="reflection-section">
       <textarea class="reflection-textarea" id="reflection-input" placeholder="📝 ${t.placeholder}">${getStorage('ref_' + todayKey, '')}</textarea>
-      <button class="btn-diary save" id="btn-save">${t.save}</button>
-      <button class="btn-diary" onclick="switchTab('library')">📖 ${t.diary.replace('📖 ','')}</button>
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <button class="btn-diary save" id="btn-save" style="flex:1;">${t.save}</button>
+        <button class="btn-diary" id="btn-share-today" style="flex:1;background:rgba(212,175,55,0.2);color:#d4af37;border:1px solid rgba(212,175,55,0.4);"><ion-icon name="share-social-outline"></ion-icon> Compartir</button>
+      </div>
+      <button class="btn-diary" onclick="switchTab('library')" style="width:100%;">📖 ${t.diary.replace('📖 ','')}</button>
     </div>
   `;
 
@@ -772,8 +976,32 @@ async function loadHomeView() {
     if (!text && !getStorage('done_'+todayKey, false)) { showToast(t.toastRef); $('reflection-input').focus(); return; }
     const newDone = !getStorage('done_' + todayKey, false);
     setStorage('done_' + todayKey, newDone);
+    
+    if (newDone) {
+      const todayStr = new Date().toDateString();
+      const lastDateStr = getStorage('streak_last_date', null);
+      let streak = getStorage('streak_count', 0);
+      
+      if (lastDateStr !== todayStr) {
+        if (lastDateStr) {
+          const last = new Date(lastDateStr);
+          const current = new Date(todayStr);
+          const diffDays = Math.round((current - last) / (1000 * 60 * 60 * 24));
+          if (diffDays === 1) streak++;
+          else streak = 1;
+        } else {
+          streak = 1;
+        }
+        setStorage('streak_count', streak);
+        setStorage('streak_last_date', todayStr);
+        if (streak === 7) setTimeout(() => showToast('🔥 ¡Racha de 7 días!'), 1500);
+        if (streak === 30) setTimeout(() => showToast('🏆 ¡Racha de 30 días!'), 1500);
+      }
+    }
+
     $('btn-done').classList.toggle('done', newDone);
     $('btn-done').textContent = (newDone ? '✓ ' : '○ ') + t.complete;
+    loadHomeView(); // refrescar contador visual
     if (newDone) showToast(t.completed);
   });
 
@@ -790,6 +1018,21 @@ async function loadHomeView() {
     if (!getStorage('done_' + todayKey, false)) $('btn-done').click();
     loadLibraryView();
   });
+
+  const shareBtn = $('btn-share-today');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', () => {
+      const text = $('reflection-input').value.trim();
+      const streak = getStorage('streak_count', 0);
+      const shareText = `📖 Terminé mi lectura bíblica diaria con una racha de ${streak} días 🔥.\n\n✨ Reflexión: "${text ? text : 'Hoy aprendí algo nuevo de la Palabra Dios y completé la lectura de hoy.'}"\n\nApp Lectura Bíblica Diaria.`;
+      if (navigator.share) {
+        navigator.share({ title: 'Lectura Bíblica Diaria', text: shareText }).catch(console.error);
+      } else {
+        navigator.clipboard.writeText(shareText);
+        showToast('✅ Copiado al portapapeles');
+      }
+    });
+  }
 
   $('btn-reminders').addEventListener('click', () => {
     ReminderManager.openSettings();
@@ -901,7 +1144,7 @@ function renderQuestion() {
   card.innerHTML = `
     <div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:${pct}%"></div></div>
     <div class="quiz-inner">
-      <div class="quiz-batch-info">Fase ${batchNum} • ${progress}/${batchSize}</div>
+      <div class="quiz-batch-info">${t.phase} ${batchNum} • ${progress}/${batchSize}</div>
       <div class="quiz-counter">${t.question} ${quizIdx + 1}</div>
       ${questionHTML}
       <div class="quiz-options">
@@ -974,5 +1217,15 @@ function applyReaderFontSize() { if($('reader-body')) $('reader-body').style.fon
 document.addEventListener('DOMContentLoaded', () => {
     $('btn-font-dec').onclick = () => { currentReaderFontSize = Math.max(12, currentReaderFontSize - 2); setStorage('reader_font_size', currentReaderFontSize); applyReaderFontSize(); };
     $('btn-font-inc').onclick = () => { currentReaderFontSize = Math.min(36, currentReaderFontSize + 2); setStorage('reader_font_size', currentReaderFontSize); applyReaderFontSize(); };
-    $('btn-close-reader').onclick = () => $('reader-modal').classList.remove('open');
+    
+    const closeReaderBtn = $('btn-close-reader');
+    if (closeReaderBtn) {
+        closeReaderBtn.onclick = () => {
+            $('reader-modal').classList.remove('open');
+            AudioBible.stop();
+        };
+    }
+    
+    const audioBtn = $('btn-audio-bible');
+    if (audioBtn) audioBtn.onclick = () => AudioBible.toggle();
 });
